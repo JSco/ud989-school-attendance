@@ -1,84 +1,111 @@
-/* STUDENTS IGNORE THIS FUNCTION
- * All this does is create an initial
- * attendance record if one is not found
- * within localStorage.
- */
 (function() {
-    if (!localStorage.attendance) {
-        console.log('Creating attendance records...');
-        function getRandom() {
-            return (Math.random() >= 0.5);
-        }
+    var model, view, controller;
 
-        var nameColumns = $('tbody .name-col'),
-            attendance = {};
+    model = {
+        init: function() {
+            if (!localStorage.attendance) {
+                var nameColumns = $('tbody .name-col'),
+                    attendance = {};
 
-        nameColumns.each(function() {
-            var name = this.innerText;
-            attendance[name] = [];
+                console.log('Creating attendance records...');
 
-            for (var i = 0; i <= 11; i++) {
-                attendance[name].push(getRandom());
-            }
-        });
-
-        localStorage.attendance = JSON.stringify(attendance);
-    }
-}());
-
-
-/* STUDENT APPLICATION */
-$(function() {
-    var attendance = JSON.parse(localStorage.attendance),
-        $allMissed = $('tbody .missed-col'),
-        $allCheckboxes = $('tbody input');
-
-    // Count a student's missed days
-    function countMissing() {
-        $allMissed.each(function() {
-            var studentRow = $(this).parent('tr'),
-                dayChecks = $(studentRow).children('td').children('input'),
-                numMissed = 0;
-
-            dayChecks.each(function() {
-                if (!$(this).prop('checked')) {
-                    numMissed++;
+                function getRandom() {
+                    return (Math.random() >= 0.5);
                 }
+
+                nameColumns.each(function() {
+                    var name = this.innerText;
+                    attendance[name] = [];
+
+                    for (var i = 0; i <= 11; i++) {
+                        attendance[name].push(getRandom());
+                    }
+                });
+
+                localStorage.attendance = JSON.stringify(attendance);
+            }
+        },
+        getAttendanceObj: function() {
+            return JSON.parse(localStorage.attendance);
+        },
+        setAttendance: function(obj) {
+            localStorage.attendance = JSON.stringify(obj);
+        }
+    };
+
+    controller = {
+        init: function() {
+            model.init();
+            view.init();
+        },
+        countMissing: function() {
+            var attendanceObj = this.getAttendanceRecords();
+
+        },
+        getAttendanceRecords: function() {
+            return model.getAttendanceObj();
+        },
+        updateAttendance: function(newObj) {
+            model.setAttendance(newObj);
+            view.render();
+        }
+    };
+
+    view = {
+        init: function() {
+            var attendance = controller.getAttendanceRecords(),
+                $allCheckboxes = $('tbody input');
+
+            // Check boxes, based on attendance records
+            $.each(attendance, function(name, days) {
+                var studentRow = $('tbody .name-col:contains("' + name + '")').parent('tr'),
+                    dayChecks = $(studentRow).children('.attend-col').children('input');
+
+                dayChecks.each(function(i) {
+                    $(this).prop('checked', days[i]);
+                });
             });
 
-            $(this).text(numMissed);
-        });
-    }
+            // When a checkbox is clicked, update localStorage
+            $allCheckboxes.on('click', function() {
+                var studentRows = $('tbody .student'),
+                    newAttendance = {};
 
-    // Check boxes, based on attendace records
-    $.each(attendance, function(name, days) {
-        var studentRow = $('tbody .name-col:contains("' + name + '")').parent('tr'),
-            dayChecks = $(studentRow).children('.attend-col').children('input');
+                studentRows.each(function() {
+                    var name = $(this).children('.name-col').text(),
+                        $allCheckboxes = $(this).children('td').children('input');
 
-        dayChecks.each(function(i) {
-            $(this).prop('checked', days[i]);
-        });
-    });
+                    newAttendance[name] = [];
 
-    // When a checkbox is clicked, update localStorage
-    $allCheckboxes.on('click', function() {
-        var studentRows = $('tbody .student'),
-            newAttendance = {};
+                    $allCheckboxes.each(function() {
+                        newAttendance[name].push($(this).prop('checked'));
+                    });
+                });
 
-        studentRows.each(function() {
-            var name = $(this).children('.name-col').text(),
-                $allCheckboxes = $(this).children('td').children('input');
-
-            newAttendance[name] = [];
-
-            $allCheckboxes.each(function() {
-                newAttendance[name].push($(this).prop('checked'));
+                controller.updateAttendance(newAttendance);
             });
-        });
 
-        countMissing();
-        localStorage.attendance = JSON.stringify(newAttendance);
-    });
+            this.render();
+        },
+        render: function() {
+            var $allMissed = $('tbody .missed-col');
 
-    countMissing();
-}());
+            $allMissed.each(function() {
+                var studentRow = $(this).parent('tr'),
+                    dayChecks = $(studentRow).children('td').children('input'),
+                    numMissed = 0;
+
+                dayChecks.each(function() {
+                    if (!$(this).prop('checked')) {
+                        numMissed++;
+                    }
+                });
+
+                $(this).text(numMissed);
+            });
+        }
+    };
+
+    controller.init();
+
+})();
